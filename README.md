@@ -1,7 +1,7 @@
 # ⚡ LogicGate Lab — Interactive Logic Gate Simulator & Digital Circuit Designer
 
 <div align="center">
-  <img src="[public/lgl.png](https://logicgateslab.vercel.app/lgl.png)" alt="LogicGate Lab Logo" width="120" />
+  <img src="https://logicgateslab.vercel.app/lgl.png" alt="LogicGate Lab Logo" width="120" />
 
   <h3>A Modern, High-Performance, Web-Based Digital Logic CAD & Educational Circuit Simulation Engine</h3>
 
