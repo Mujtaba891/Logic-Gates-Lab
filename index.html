@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <!-- Primary Meta Tags -->
+    <title>LogicGate Lab — Interactive Logic Gate Simulator & Digital Circuit Designer</title>
+    <meta name="title" content="LogicGate Lab — Interactive Logic Gate Simulator & Digital Circuit Designer" />
+    <meta name="description" content="Build, simulate, and analyze digital logic circuits in real time. Design AND, OR, NOT, NAND, NOR, XOR, XNOR gates, flip-flops, adders, multiplexers with truth tables, timing diagrams, and .lgl project export." />
+    <meta name="keywords" content="logic gate simulator, digital logic designer, circuit builder, boolean algebra, truth table generator, timing diagram, digital electronics, AND gate, OR gate, XOR gate, NAND, flip-flop, adder circuit, logic simulator online, .lgl project, breadboard simulator, boolean logic" />
+    <meta name="author" content="LogicGate Lab" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="LogicGate Lab" />
+    <meta name="apple-mobile-web-app-title" content="LogicGate Lab" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Favicons & App Icons -->
+    <link rel="icon" type="image/png" href="/lgl.png" />
+    <link rel="apple-touch-icon" href="/lgl.png" />
+    <link rel="shortcut icon" href="/lgl.png" />
+
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LogicGate Lab" />
+    <meta property="og:title" content="LogicGate Lab — Interactive Logic Gate Simulator & Digital Circuit Designer" />
+    <meta property="og:description" content="Design and simulate digital logic circuits in your browser. Real-time signal propagation, interactive truth table calculation, waveform timing diagrams, and native .lgl project portability." />
+    <meta property="og:image" content="/lgl.png" />
+    <meta property="og:image:alt" content="LogicGate Lab Project Icon" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LogicGate Lab — Interactive Logic Gate Simulator & Digital Circuit Designer" />
+    <meta name="twitter:description" content="Build, simulate, and verify digital circuits with instant truth tables, waveform graphs, logic challenges, and .lgl native project export." />
+    <meta name="twitter:image" content="/lgl.png" />
+    <meta name="twitter:image:alt" content="LogicGate Lab Circuit Designer" />
+
+    <!-- Google Fonts & Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Structured Data (Schema.org JSON-LD for rich Google Search Snippets) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LogicGate Lab",
+      "alternateName": "Logic Gate Simulator & Circuit Builder",
+      "url": "https://ai.studio/build",
+      "applicationCategory": "EducationalApplication, DesignApplication",
+      "operatingSystem": "Web, Windows, macOS, Linux, iOS, Android",
+      "browserRequirements": "Requires JavaScript. Requires HTML5 Canvas.",
+      "description": "Interactive web-based digital logic gate simulator and circuit builder with real-time propagation, automated truth tables, timing waveforms, preset templates, and .lgl project save/export.",
+      "softwareVersion": "2.4.0",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Real-time Digital Logic Circuit Simulation",
+        "AND, OR, NOT, NAND, NOR, XOR, XNOR, Tri-State, Buffer Gates",
+        "Interactive Inputs: Toggle Switch, Push Button, High/Low Rails, Square-Wave Clock",
+        "Visual Outputs: LED Indicator, Digital Probe, 7-Segment Display, 4-Bit Hex Display",
+        "Complex IC Modules: Half Adder, Full Adder, 4-Bit Ripple Adder, 2-to-1 Multiplexer, SR / D / JK Flip-Flops, 4-Bit Counter",
+        "Automated Real-Time Multi-Variable Truth Table Generator",
+        "Digital Signal Oscilloscope & Waveform Timing Diagram",
+        "Interactive Gate Identification Quiz & Boolean Logic Challenges",
+        "Deterministic Native .lgl Project File Import & Export",
+        "High-Resolution PNG and Scalable Vector Graphics (SVG) Export"
+      ]
+    }
+    </script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
+    <!-- Fallback Content for Crawlers & Disabled JavaScript -->
+    <noscript>
+      <div style="padding: 2rem; max-width: 760px; margin: 0 auto; font-family: system-ui, sans-serif; color: #f8fafc; background: #020617; min-height: 100vh;">
+        <h1 style="color: #10b981; font-size: 1.75rem; margin-bottom: 0.5rem;">LogicGate Lab — Logic Gate Simulator & Circuit Designer</h1>
+        <p style="color: #94a3b8; font-size: 1rem; line-height: 1.6;">
+          LogicGate Lab is a full-featured, real-time interactive digital electronics simulator. Design, test, and analyze combinatorial and sequential logic circuits using logic gates (AND, OR, NOT, XOR, NAND, NOR, XNOR), complex ICs (Adders, Multiplexers, Counters, Flip-Flops), dynamic clock pulses, interactive truth tables, and timing diagrams.
+        </p>
+        <p style="color: #e2e8f0; margin-top: 1rem; font-size: 0.95rem;">
+          Please enable JavaScript to launch the interactive circuit builder canvas and simulation engine.
+        </p>
+      </div>
+    </noscript>
+
+    <!-- App Root with Premium Fast-Boot Skeleton Placeholder -->
+    <div id="root">
+      <div class="h-[100dvh] w-full flex flex-col items-center justify-center bg-slate-950 text-slate-100 select-none">
+        <div class="relative flex flex-col items-center">
+          <!-- Glow effect -->
+          <div class="absolute -inset-4 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
+          
+          <!-- Logo & Pulsing indicator -->
+          <div class="relative w-16 h-16 rounded-2xl bg-slate-900 border border-emerald-500/30 p-2.5 shadow-2xl flex items-center justify-center mb-4">
+            <img src="/lgl.png" alt="LogicGate Lab" class="w-10 h-10 object-contain" />
+            <span class="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-slate-950"></span>
+            </span>
+          </div>
+
+          <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+            LogicGate <span class="text-emerald-400 font-mono">Lab</span>
+          </h1>
+          <p class="text-[11px] text-slate-400 font-mono mt-1">Initializing Digital Engine...</p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

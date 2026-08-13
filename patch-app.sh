@@ -1,0 +1,1 @@
+sed -i "s/import { PRESET_CIRCUITS, CircuitPreset } from '.\/data\/presets';/import { PRESET_CIRCUITS, CircuitPreset } from '.\/data\/presets';\nimport { useCircuitHistory } from '.\/hooks\/useCircuitHistory';/" src/App.tsx

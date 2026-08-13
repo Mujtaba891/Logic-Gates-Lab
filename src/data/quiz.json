@@ -1,0 +1,122 @@
+[
+  {
+    "question": "Which logic gate outputs a 1 only when all its inputs are 1?",
+    "options": ["OR Gate", "AND Gate", "XOR Gate", "NAND Gate"],
+    "correctAnswer": "AND Gate",
+    "explanation": "An AND gate performs logical multiplication. The output is true (1) if and only if all inputs are true (1)."
+  },
+  {
+    "question": "Which logic gate outputs a 0 only when all its inputs are 1?",
+    "options": ["AND Gate", "NOR Gate", "NAND Gate", "XOR Gate"],
+    "correctAnswer": "NAND Gate",
+    "explanation": "A NAND gate is an inverted AND gate. It outputs a 0 only when all inputs are 1; otherwise, it outputs a 1."
+  },
+  {
+    "question": "What is the Boolean expression for an XOR gate with inputs A and B?",
+    "options": ["A + B", "A \u00b7 B", "A \u2295 B", "(A + B)'"],
+    "correctAnswer": "A \u2295 B",
+    "explanation": "The XOR (exclusive OR) operation is represented by the \u2295 symbol. It evaluates to true if exactly one input is true."
+  },
+  {
+    "question": "Which logic gate is known as the 'Universal Gate' because it can be used to construct any other logic gate?",
+    "options": ["OR Gate", "NOT Gate", "XOR Gate", "NAND Gate"],
+    "correctAnswer": "NAND Gate",
+    "explanation": "NAND (and NOR) gates are universal gates because any Boolean function can be implemented using only these gates."
+  },
+  {
+    "question": "What is the output of a NOR gate if both inputs are 0?",
+    "options": ["0", "1", "High-Z", "Undefined"],
+    "correctAnswer": "1",
+    "explanation": "A NOR gate outputs a 1 only when both inputs are 0. If any input is 1, the output is 0."
+  },
+  {
+    "question": "In Boolean algebra, what does the expression A + A' evaluate to?",
+    "options": ["A", "0", "1", "A'"],
+    "correctAnswer": "1",
+    "explanation": "According to the Complementarity Law, A + A' always equals 1 because one of the variables will always be 1."
+  },
+  {
+    "question": "According to De Morgan's Laws, (A \u00b7 B)' is equivalent to:",
+    "options": ["A' + B'", "A' \u00b7 B'", "A + B", "(A + B)'"],
+    "correctAnswer": "A' + B'",
+    "explanation": "De Morgan's Law states that the complement of a product is the sum of the complements."
+  },
+  {
+    "question": "Which gate produces a 1 output if an odd number of inputs are 1?",
+    "options": ["AND Gate", "OR Gate", "XOR Gate", "XNOR Gate"],
+    "correctAnswer": "XOR Gate",
+    "explanation": "An XOR gate acts as an odd-parity checker. It outputs 1 if there is an odd number of 1s at its inputs."
+  },
+  {
+    "question": "What does a NOT gate (inverter) do to a digital signal?",
+    "options": ["Amplifies the signal", "Inverts the logical state", "Acts as a buffer", "Creates a short circuit"],
+    "correctAnswer": "Inverts the logical state",
+    "explanation": "A NOT gate changes a 1 to a 0 and a 0 to a 1."
+  },
+  {
+    "question": "How many rows are in a truth table for a circuit with 3 inputs?",
+    "options": ["4", "6", "8", "16"],
+    "correctAnswer": "8",
+    "explanation": "The number of rows in a truth table is 2^n, where n is the number of inputs. 2^3 = 8."
+  },
+  {
+    "question": "Which logic gate outputs a 1 if at least one input is 1?",
+    "options": ["AND Gate", "OR Gate", "NAND Gate", "XNOR Gate"],
+    "correctAnswer": "OR Gate",
+    "explanation": "An OR gate performs logical addition, outputting a 1 if any of its inputs are 1."
+  },
+  {
+    "question": "What is the Boolean algebraic property A \u00b7 A = A called?",
+    "options": ["Idempotent Law", "Commutative Law", "Associative Law", "Distributive Law"],
+    "correctAnswer": "Idempotent Law",
+    "explanation": "The Idempotent Law states that ANDing or ORing a variable with itself results in the original variable (A \u00b7 A = A and A + A = A)."
+  },
+  {
+    "question": "Which gate is equivalent to an OR gate with inverted inputs?",
+    "options": ["AND Gate", "NAND Gate", "NOR Gate", "XOR Gate"],
+    "correctAnswer": "NAND Gate",
+    "explanation": "By De Morgan's Law, A' + B' = (A \u00b7 B)'. Therefore, an OR gate with inverted inputs functions exactly like a NAND gate."
+  },
+  {
+    "question": "What is the result of A \u00b7 0 in Boolean algebra?",
+    "options": ["A", "1", "0", "A'"],
+    "correctAnswer": "0",
+    "explanation": "According to the Annulment Law, anything ANDed with 0 results in 0."
+  },
+  {
+    "question": "What is the result of A + 1 in Boolean algebra?",
+    "options": ["A", "1", "0", "A'"],
+    "correctAnswer": "1",
+    "explanation": "According to the Annulment Law, anything ORed with 1 results in 1."
+  },
+  {
+    "question": "A multiplexer (MUX) with 4 selection lines can have how many data inputs?",
+    "options": ["4", "8", "16", "32"],
+    "correctAnswer": "16",
+    "explanation": "A MUX with n selection lines can select from 2^n data inputs. 2^4 = 16."
+  },
+  {
+    "question": "Which combination of gates can be used to construct a Half Adder?",
+    "options": ["One AND gate and one OR gate", "One XOR gate and one AND gate", "Two NAND gates", "One XOR gate and one OR gate"],
+    "correctAnswer": "One XOR gate and one AND gate",
+    "explanation": "A Half Adder uses an XOR gate for the Sum output and an AND gate for the Carry output."
+  },
+  {
+    "question": "What is the primary difference between combinational and sequential logic?",
+    "options": ["Combinational logic uses memory elements, sequential does not.", "Sequential logic depends on present inputs and past states; combinational depends only on present inputs.", "Combinational logic is faster.", "Sequential logic only uses NAND gates."],
+    "correctAnswer": "Sequential logic depends on present inputs and past states; combinational depends only on present inputs.",
+    "explanation": "Combinational logic outputs rely instantly on current inputs. Sequential logic (like flip-flops) involves memory and clock signals."
+  },
+  {
+    "question": "In a Karnaugh Map (K-Map), grouping 4 adjacent cells simplifies a term by eliminating how many variables?",
+    "options": ["1", "2", "3", "4"],
+    "correctAnswer": "2",
+    "explanation": "Grouping 2^n cells in a K-Map eliminates n variables. Grouping 4 (2^2) cells eliminates 2 variables."
+  },
+  {
+    "question": "If you feed a signal A into both inputs of a NAND gate, what does it function as?",
+    "options": ["AND Gate", "OR Gate", "NOT Gate", "Buffer"],
+    "correctAnswer": "NOT Gate",
+    "explanation": "A NAND A = (A \u00b7 A)' = A'. Tying the inputs of a NAND (or NOR) gate together creates an inverter (NOT gate)."
+  }
+]

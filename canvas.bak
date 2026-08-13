@@ -1,0 +1,773 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { CircuitComponent, Wire, GateType, Position, Port, WireStyle } from '../types';
+import { GateSymbolSvg } from './GateSymbolSvg';
+import { createComponentPorts } from '../utils/logicEngine';
+import { ContextToolbar } from './ContextToolbar';
+import { QuickAddMenu } from './QuickAddMenu';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+
+interface CircuitCanvasProps {
+  components: CircuitComponent[];
+  wires: Wire[];
+  wireStyle?: WireStyle;
+  animateSignals?: boolean;
+  onUpdateComponents: (components: CircuitComponent[]) => void;
+  onUpdateCircuit?: (components: CircuitComponent[], wires: Wire[]) => void;
+  onUpdateWires: (wires: Wire[]) => void;
+  onAddComponent: (type: GateType, pos?: Position) => void;
+  svgRef: React.RefObject<SVGSVGElement | null>;
+}
+
+// Calculate port position after 0, 90, 180, 270 degree rotation
+export const getRotatedPortOffset = (
+  relativeX: number,
+  relativeY: number,
+  rotation: 0 | 90 | 180 | 270 = 0
+): Position => {
+  switch (rotation) {
+    case 90:
+      return { x: 65 - relativeY, y: relativeX - 15 };
+    case 180:
+      return { x: 80 - relativeX, y: 50 - relativeY };
+    case 270:
+      return { x: 15 + relativeY, y: 65 - relativeX };
+    default:
+      return { x: relativeX, y: relativeY };
+  }
+};
+
+export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
+  components,
+  wires,
+  wireStyle = 'bezier',
+  animateSignals = true,
+  onUpdateComponents,
+  onUpdateCircuit,
+  onUpdateWires,
+  onAddComponent,
+  svgRef,
+}) => {
+  // Canvas Viewport Transformation
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState<Position>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState<Position>({ x: 0, y: 0 });
+
+  // Dragging Component State
+  const [draggingCompId, setDraggingCompId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
+
+  // Wire Connection Pending State
+  const [wireStart, _setWireStart] = useState<{ compId: string; portId: string; pos: Position } | null>(null);
+  const wireStartRef = useRef<{ compId: string; portId: string; pos: Position } | null>(null);
+
+  const setWireStart = (val: { compId: string; portId: string; pos: Position } | null) => {
+    wireStartRef.current = val;
+    _setWireStart(val);
+  };
+
+  const [mouseCanvasPos, setMouseCanvasPos] = useState<Position>({ x: 0, y: 0 });
+  const [hoveredPortId, setHoveredPortId] = useState<string | null>(null);
+
+  // Magnetic snap target port when dragging wire
+  const [snapTarget, setSnapTarget] = useState<{
+    compId: string;
+    portId: string;
+    pos: Position;
+    port: Port;
+  } | null>(null);
+
+  // Selection
+  const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
+  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
+
+  // Quick Add Spotlight Menu (double click)
+  const [quickAddPos, setQuickAddPos] = useState<{ screen: Position; canvas: Position } | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Convert screen pixels to canvas coordinates
+  const screenToCanvas = useCallback(
+    (screenX: number, screenY: number): Position => {
+      if (!containerRef.current) return { x: 0, y: 0 };
+      const rect = containerRef.current.getBoundingClientRect();
+      return {
+        x: (screenX - rect.left - pan.x) / zoom,
+        y: (screenY - rect.top - pan.y) / zoom,
+      };
+    },
+    [pan, zoom]
+  );
+
+  // Get absolute canvas coordinates for a port considering component position and rotation
+  const getPortAbsolutePosition = useCallback(
+    (compId: string, portId: string): Position => {
+      const comp = components.find((c) => c.id === compId);
+      if (!comp) return { x: 0, y: 0 };
+
+      const port = comp.inputs.find((p) => p.id === portId) || comp.outputs.find((p) => p.id === portId);
+      if (!port) return { x: comp.x, y: comp.y };
+
+      const rotatedOffset = getRotatedPortOffset(port.relativeX, port.relativeY, comp.rotation || 0);
+
+      return {
+        x: comp.x + rotatedOffset.x,
+        y: comp.y + rotatedOffset.y,
+      };
+    },
+    [components]
+  );
+
+  // Connect two ports bi-directionally
+  const connectPorts = useCallback(
+    (comp1Id: string, port1Id: string, comp2Id: string, port2Id: string) => {
+      // Clear pending connection synchronously
+      wireStartRef.current = null;
+      _setWireStart(null);
+      setSnapTarget(null);
+
+      if (comp1Id === comp2Id) return;
+
+      const comp1 = components.find((c) => c.id === comp1Id);
+      const comp2 = components.find((c) => c.id === comp2Id);
+      if (!comp1 || !comp2) return;
+
+      const port1IsOutput = comp1.outputs.some((p) => p.id === port1Id);
+      const port1IsInput = comp1.inputs.some((p) => p.id === port1Id);
+
+      const port2IsOutput = comp2.outputs.some((p) => p.id === port2Id);
+      const port2IsInput = comp2.inputs.some((p) => p.id === port2Id);
+
+      let fromCompId = '';
+      let fromPortId = '';
+      let toCompId = '';
+      let toPortId = '';
+
+      if (port1IsOutput && port2IsInput) {
+        fromCompId = comp1Id;
+        fromPortId = port1Id;
+        toCompId = comp2Id;
+        toPortId = port2Id;
+      } else if (port1IsInput && port2IsOutput) {
+        fromCompId = comp2Id;
+        fromPortId = port2Id;
+        toCompId = comp1Id;
+        toPortId = port1Id;
+      } else {
+        // Input-Input or Output-Output: invalid connection
+        return;
+      }
+
+      // Replace existing wire connected to target input port if any
+      const filteredWires = wires.filter((w) => !(w.toCompId === toCompId && w.toPortId === toPortId));
+
+      const newWire: Wire = {
+        id: `wire-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        fromCompId,
+        fromPortId,
+        toCompId,
+        toPortId,
+      };
+
+      if (onUpdateCircuit) {
+        onUpdateCircuit(components, [...filteredWires, newWire]);
+      } else {
+        onUpdateWires([...filteredWires, newWire]);
+      }
+    },
+    [components, wires, onUpdateCircuit, onUpdateWires]
+  );
+
+  // Handle Canvas Mouse Move
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const canvasPos = screenToCanvas(e.clientX, e.clientY);
+    setMouseCanvasPos(canvasPos);
+
+    if (isPanning) {
+      setPan({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      });
+      return;
+    }
+
+    if (draggingCompId) {
+      const gridSnap = 10;
+      const rawX = canvasPos.x - dragOffset.x;
+      const rawY = canvasPos.y - dragOffset.y;
+      const snappedX = Math.round(rawX / gridSnap) * gridSnap;
+      const snappedY = Math.round(rawY / gridSnap) * gridSnap;
+
+      const updated = components.map((c) => (c.id === draggingCompId ? { ...c, x: snappedX, y: snappedY } : c));
+      onUpdateComponents(updated);
+    }
+
+    // Handle Magnetic Snap when drawing wire
+    const activeWireStart = wireStartRef.current;
+    if (activeWireStart) {
+      const startComp = components.find((c) => c.id === activeWireStart.compId);
+      const isStartOutput = startComp?.outputs.some((p) => p.id === activeWireStart.portId);
+
+      let closest: { compId: string; portId: string; pos: Position; port: Port } | null = null;
+      let minDistance = 35; // Generous 35px magnetic snap radius
+
+      for (const comp of components) {
+        if (comp.id === activeWireStart.compId) continue; // Don't snap to same component
+
+        // Only snap to COMPATIBLE ports (Output -> Input, Input -> Output)
+        const candidatePorts = isStartOutput ? comp.inputs : comp.outputs;
+
+        for (const p of candidatePorts) {
+          const pPos = getPortAbsolutePosition(comp.id, p.id);
+          const dist = Math.hypot(canvasPos.x - pPos.x, canvasPos.y - pPos.y);
+
+          if (dist < minDistance) {
+            minDistance = dist;
+            closest = { compId: comp.id, portId: p.id, pos: pPos, port: p };
+          }
+        }
+      }
+
+      setSnapTarget(closest);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+    setDraggingCompId(null);
+
+    // If releasing wire over snap target
+    const activeWireStart = wireStartRef.current;
+    if (activeWireStart && snapTarget) {
+      connectPorts(activeWireStart.compId, activeWireStart.portId, snapTarget.compId, snapTarget.portId);
+    } else if (activeWireStart) {
+      setWireStart(null);
+      setSnapTarget(null);
+    }
+  };
+
+  // Drag & Drop from Palette
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const gateType = e.dataTransfer.getData('gateType') as GateType;
+    if (gateType) {
+      const pos = screenToCanvas(e.clientX, e.clientY);
+      onAddComponent(gateType, pos);
+    }
+  };
+
+  // Canvas Mouse Down
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 1) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    } else if ((e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).id === 'grid-rect') {
+      setSelectedCompId(null);
+      setSelectedWireId(null);
+      setWireStart(null);
+      setSnapTarget(null);
+      setQuickAddPos(null);
+    }
+  };
+
+  // Double Click Canvas Spotlight Menu
+  const handleCanvasDoubleClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).id === 'grid-rect') {
+      const canvasPos = screenToCanvas(e.clientX, e.clientY);
+      setQuickAddPos({
+        screen: { x: e.clientX, y: e.clientY },
+        canvas: canvasPos,
+      });
+    }
+  };
+
+  // Component Drag Start
+  const handleCompMouseDown = (e: React.MouseEvent, comp: CircuitComponent) => {
+    e.stopPropagation();
+    setSelectedCompId(comp.id);
+    setSelectedWireId(null);
+    setQuickAddPos(null);
+
+    const canvasPos = screenToCanvas(e.clientX, e.clientY);
+    setDraggingCompId(comp.id);
+    setDragOffset({
+      x: canvasPos.x - comp.x,
+      y: canvasPos.y - comp.y,
+    });
+  };
+
+  // Component Actions
+  const handleRotateComponent = (compId: string) => {
+    const updated = components.map((c) => {
+      if (c.id === compId) {
+        const nextRotation = (((c.rotation || 0) + 90) % 360) as 0 | 90 | 180 | 270;
+        return { ...c, rotation: nextRotation };
+      }
+      return c;
+    });
+    onUpdateComponents(updated);
+  };
+
+  const handleDuplicateComponent = (compId: string) => {
+    const target = components.find((c) => c.id === compId);
+    if (!target) return;
+
+    const newId = `comp-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const ports = createComponentPorts(target.type, newId, target.inputCount || 2);
+
+    const cloned: CircuitComponent = {
+      ...target,
+      id: newId,
+      label: `${target.label} (Copy)`,
+      x: target.x + 30,
+      y: target.y + 30,
+      inputs: ports.inputs,
+      outputs: ports.outputs,
+    };
+
+    onUpdateComponents([...components, cloned]);
+    setSelectedCompId(newId);
+  };
+
+  const handleChangeInputCount = (compId: string, count: number) => {
+    const updated = components.map((c) => {
+      if (c.id === compId) {
+        const ports = createComponentPorts(c.type, c.id, count);
+        return {
+          ...c,
+          inputCount: count,
+          inputs: ports.inputs,
+          outputs: ports.outputs,
+        };
+      }
+      return c;
+    });
+
+    const validComp = updated.find((c) => c.id === compId);
+    const validPortIds = new Set([
+      ...(validComp?.inputs.map((p) => p.id) || []),
+      ...(validComp?.outputs.map((p) => p.id) || []),
+    ]);
+
+    const updatedWires = wires.filter(
+      (w) =>
+        (w.fromCompId !== compId || validPortIds.has(w.fromPortId)) &&
+        (w.toCompId !== compId || validPortIds.has(w.toPortId))
+    );
+
+    if (onUpdateCircuit) {
+      onUpdateCircuit(updated, updatedWires);
+    } else {
+      onUpdateComponents(updated);
+      onUpdateWires(updatedWires);
+    }
+  };
+
+  const handleChangeColor = (compId: string, color: string) => {
+    onUpdateComponents(components.map((c) => (c.id === compId ? { ...c, color } : c)));
+  };
+
+  const handleChangeLabel = (compId: string, label: string) => {
+    onUpdateComponents(components.map((c) => (c.id === compId ? { ...c, label } : c)));
+  };
+
+  const handleDeleteComp = (compId: string) => {
+    const filteredComps = components.filter((c) => c.id !== compId);
+    const filteredWires = wires.filter((w) => w.fromCompId !== compId && w.toCompId !== compId);
+
+    if (onUpdateCircuit) {
+      onUpdateCircuit(filteredComps, filteredWires);
+    } else {
+      onUpdateComponents(filteredComps);
+      onUpdateWires(filteredWires);
+    }
+
+    if (selectedCompId === compId) setSelectedCompId(null);
+  };
+
+  const handleDeleteWire = (wireId: string) => {
+    onUpdateWires(wires.filter((w) => w.id !== wireId));
+    if (selectedWireId === wireId) setSelectedWireId(null);
+  };
+
+  // Toggle Input Switch State
+  const handleInputToggle = (e: React.MouseEvent, comp: CircuitComponent) => {
+    e.stopPropagation();
+    if (comp.type === 'INPUT') {
+      const nextState = !comp.state;
+      const updated = components.map((c) => {
+        if (c.id === comp.id) {
+          return {
+            ...c,
+            state: nextState,
+            outputs: c.outputs.map((p) => ({ ...p, value: nextState })),
+          };
+        }
+        return c;
+      });
+      onUpdateComponents(updated);
+    }
+  };
+
+  // Handle Port Mouse Down
+  const handlePortMouseDown = (e: React.MouseEvent, compId: string, port: Port) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const activeWireStart = wireStartRef.current;
+    if (!activeWireStart) {
+      const portPos = getPortAbsolutePosition(compId, port.id);
+      setWireStart({ compId, portId: port.id, pos: portPos });
+    } else if (activeWireStart.compId !== compId || activeWireStart.portId !== port.id) {
+      connectPorts(activeWireStart.compId, activeWireStart.portId, compId, port.id);
+    }
+  };
+
+  // Handle Port Mouse Up
+  const handlePortMouseUp = (e: React.MouseEvent, compId: string, port: Port) => {
+    e.stopPropagation();
+    const activeWireStart = wireStartRef.current;
+    if (activeWireStart && (activeWireStart.compId !== compId || activeWireStart.portId !== port.id)) {
+      connectPorts(activeWireStart.compId, activeWireStart.portId, compId, port.id);
+    }
+  };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) {
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedCompId) handleDeleteComp(selectedCompId);
+        if (selectedWireId) handleDeleteWire(selectedWireId);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        if (selectedCompId) handleDuplicateComponent(selectedCompId);
+      } else if (e.key.toLowerCase() === 'r') {
+        if (selectedCompId) handleRotateComponent(selectedCompId);
+      } else if (e.key === 'Escape') {
+        setWireStart(null);
+        setSnapTarget(null);
+        setSelectedCompId(null);
+        setSelectedWireId(null);
+        setQuickAddPos(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCompId, selectedWireId, components, wires]);
+
+  // Build Wire SVG Path Data
+  const buildWirePath = (start: Position, end: Position): string => {
+    if (wireStyle === 'straight') {
+      return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+    }
+
+    if (wireStyle === 'orthogonal') {
+      const midX = (start.x + end.x) / 2;
+      return `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${end.y} L ${end.x} ${end.y}`;
+    }
+
+    // Bezier
+    const dx = Math.abs(end.x - start.x) * 0.5;
+    return `M ${start.x} ${start.y} C ${start.x + dx} ${start.y}, ${end.x - dx} ${end.y}, ${end.x} ${end.y}`;
+  };
+
+  const selectedComp = components.find((c) => c.id === selectedCompId);
+
+  // Render individual Port
+  const renderPort = (port: Port, comp: CircuitComponent) => {
+    const pos = getRotatedPortOffset(port.relativeX, port.relativeY, comp.rotation || 0);
+    const isHovered = hoveredPortId === port.id || snapTarget?.portId === port.id;
+    const isConnecting = !!wireStart;
+    const isSelf = wireStart?.compId === comp.id && wireStart?.portId === port.id;
+
+    return (
+      <g
+        key={port.id}
+        transform={`translate(${pos.x}, ${pos.y})`}
+        onMouseEnter={() => setHoveredPortId(port.id)}
+        onMouseLeave={() => setHoveredPortId(null)}
+        onMouseDown={(e) => handlePortMouseDown(e, comp.id, port)}
+        onMouseUp={(e) => handlePortMouseUp(e, comp.id, port)}
+        className="cursor-pointer"
+      >
+        {/* Large invisible hit area (r=14) */}
+        <circle r="14" fill="transparent" />
+
+        {/* Magnetic Target Pulse Ring */}
+        {isConnecting && !isSelf && (
+          <circle
+            r="10"
+            fill="none"
+            stroke={isHovered ? '#22c55e' : '#eab308'}
+            strokeWidth="2"
+            strokeDasharray="3 2"
+            className="animate-spin opacity-90"
+          />
+        )}
+
+        {/* Visible Port Circle */}
+        <circle
+          r={isHovered ? '7' : '5'}
+          fill={port.value ? '#22c55e' : '#1e293b'}
+          stroke={isSelf ? '#f59e0b' : port.value ? '#86efac' : isHovered ? '#38bdf8' : '#64748b'}
+          strokeWidth="2.5"
+          className="transition-all duration-100"
+        />
+      </g>
+    );
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseDown={handleCanvasMouseDown}
+      onDoubleClick={handleCanvasDoubleClick}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className="relative flex-1 bg-[#0b1329] overflow-hidden cursor-crosshair select-none"
+    >
+      {/* Floating Context Toolbar */}
+      {selectedComp && (
+        <div
+          style={{
+            left: Math.max(20, Math.min(window.innerWidth - 380, (selectedComp.x + pan.x) * zoom)),
+            top: Math.max(70, (selectedComp.y + pan.y) * zoom - 50),
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="absolute z-40"
+        >
+          <ContextToolbar
+            component={selectedComp}
+            onRotate={handleRotateComponent}
+            onDuplicate={handleDuplicateComponent}
+            onDelete={handleDeleteComp}
+            onChangeInputCount={handleChangeInputCount}
+            onChangeColor={handleChangeColor}
+            onChangeLabel={handleChangeLabel}
+          />
+        </div>
+      )}
+
+      {/* Double Click Spotlight Quick Add Menu */}
+      {quickAddPos && (
+        <QuickAddMenu
+          position={quickAddPos.screen}
+          onAdd={(type) => onAddComponent(type, quickAddPos.canvas)}
+          onClose={() => setQuickAddPos(null)}
+        />
+      )}
+
+      {/* Viewport Zoom Controls */}
+      <div className="absolute bottom-4 right-4 z-20 flex items-center bg-slate-900/90 border border-slate-700 rounded-xl p-1 shadow-xl text-slate-300">
+        <button
+          onClick={() => setZoom((z) => Math.min(z + 0.15, 2.5))}
+          title="Zoom In"
+          className="p-2 hover:bg-slate-800 rounded-lg transition"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setZoom((z) => Math.max(z - 0.15, 0.4))}
+          title="Zoom Out"
+          className="p-2 hover:bg-slate-800 rounded-lg transition"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => {
+            setZoom(1);
+            setPan({ x: 0, y: 0 });
+          }}
+          title="Reset View"
+          className="p-2 hover:bg-slate-800 rounded-lg transition"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* SVG Canvas Workspace */}
+      <svg
+        ref={svgRef}
+        className="w-full h-full block"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
+        }}
+      >
+        <defs>
+          <pattern id="dot-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1" fill="#1e293b" />
+          </pattern>
+        </defs>
+
+        <rect id="grid-rect" width="10000" height="10000" x="-5000" y="-5000" fill="url(#dot-grid)" />
+
+        {/* 1. Render Wires */}
+        {wires.map((wire) => {
+          const start = getPortAbsolutePosition(wire.fromCompId, wire.fromPortId);
+          const end = getPortAbsolutePosition(wire.toCompId, wire.toPortId);
+          const isSelected = selectedWireId === wire.id;
+          const isSignalActive = wire.color === '#22c55e';
+
+          const pathData = buildWirePath(start, end);
+
+          return (
+            <g
+              key={wire.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedWireId(wire.id);
+                setSelectedCompId(null);
+              }}
+            >
+              {/* Wide Hitbox */}
+              <path d={pathData} fill="none" stroke="transparent" strokeWidth="16" className="cursor-pointer" />
+
+              {/* Wire Ambient Glow */}
+              <path
+                d={pathData}
+                fill="none"
+                stroke={isSignalActive ? '#22c55e' : '#475569'}
+                strokeWidth={isSelected ? '6' : '3.5'}
+                opacity={isSignalActive ? '0.35' : '0.1'}
+                filter="blur(3px)"
+              />
+
+              {/* Main Wire Line */}
+              <path
+                d={pathData}
+                fill="none"
+                stroke={isSelected ? '#38bdf8' : isSignalActive ? '#22c55e' : '#64748b'}
+                strokeWidth={isSelected ? '3.5' : '2.5'}
+                strokeDasharray={isSelected ? '6 3' : undefined}
+                className="transition-colors duration-150"
+              />
+
+              {/* Glowing Signal Flow Particle Animation */}
+              {isSignalActive && animateSignals && (
+                <circle r="3.5" fill="#86efac" filter="drop-shadow(0px 0px 4px #22c55e)">
+                  <animateMotion path={pathData} dur="1.2s" repeatCount="indefinite" />
+                </circle>
+              )}
+            </g>
+          );
+        })}
+
+        {/* Wire Pending Connection Guide */}
+        {wireStart && (
+          <path
+            d={buildWirePath(wireStart.pos, snapTarget ? snapTarget.pos : mouseCanvasPos)}
+            fill="none"
+            stroke={snapTarget ? '#22c55e' : '#eab308'}
+            strokeWidth="3"
+            strokeDasharray="4 4"
+            className="animate-pulse"
+          />
+        )}
+
+        {/* 2. Render Circuit Components */}
+        {components.map((comp) => {
+          const isSelected = selectedCompIds.has(comp.id);
+          const compColor = comp.color || '#38bdf8';
+
+          return (
+            <g
+              key={comp.id}
+              transform={`translate(${comp.x}, ${comp.y})`}
+              onMouseDown={(e) => handleCompMouseDown(e, comp)}
+              className="cursor-move group"
+            >
+              {/* Rotation Group */}
+              <g transform={`rotate(${comp.rotation || 0}, 40, 25)`}>
+                {/* Selection Box */}
+                {isSelected && (
+                  <g>
+                    <rect
+                      x="-6"
+                      y="-6"
+                      width="92"
+                      height="62"
+                      rx="10"
+                      fill="none"
+                      stroke={compColor}
+                      strokeWidth="2"
+                      strokeDasharray="4 4"
+                      className="animate-pulse"
+                    />
+                    {/* Quick Delete Badge on Canvas */}
+                    <g
+                      transform="translate(80, -10)"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteComp(comp.id);
+                      }}
+                      className="cursor-pointer group/del"
+                    >
+                      <circle r="10" fill="#f43f5e" className="hover:scale-125 transition transform" />
+                      <text
+                        x="0"
+                        y="3.5"
+                        fill="#ffffff"
+                        fontSize="11"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                      >
+                        ×
+                      </text>
+                    </g>
+                  </g>
+                )}
+
+                {/* Gate Symbol SVG */}
+                <g onClick={(e) => handleInputToggle(e, comp)}>
+                  <GateSymbolSvg
+                    type={comp.type}
+                    active={!!comp.state}
+                    color={comp.color}
+                    inputCount={comp.inputCount || 2}
+                    width={80}
+                    height={50}
+                  />
+                </g>
+              </g>
+
+              {/* Label */}
+              <text
+                x="40"
+                y="-8"
+                fill={comp.color || '#94a3b8'}
+                fontSize="10"
+                fontWeight="600"
+                textAnchor="middle"
+                className="select-none"
+              >
+                {comp.label || comp.type}
+              </text>
+
+              {/* Input Ports */}
+              {comp.inputs.map((port) => renderPort(port, comp))}
+
+              {/* Output Ports */}
+              {comp.outputs.map((port) => renderPort(port, comp))}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};

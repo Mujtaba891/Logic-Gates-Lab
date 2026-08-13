@@ -1,0 +1,8 @@
+{
+  "name": "Remix Logic Gate Simulator \u0026 Circuit Builder",
+  "description": "Interactive digital logic gate explorer, drag-and-drop circuit simulator, real-time truth table generator, identification quizzes, and export options.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
