@@ -175,8 +175,8 @@ LogicGate Lab utilizes the open `.lgl` JSON schema to serialize complete circuit
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/Mujtaba891/Create-Logic-Gates.git
-   cd Create-Logic-Gates
+   git clone https://github.com/Mujtaba891/Logic-Gates-Lab.git
+   cd Logic-Gates-Lab
    ```
 
 2. **Install dependencies**:
@@ -215,7 +215,7 @@ LogicGate Lab utilizes the open `.lgl` JSON schema to serialize complete circuit
 ## 🤝 Contributing
 
 Contributions, issues, and feature requests are welcome!
-Feel free to check the [issues page](https://github.com/Mujtaba891/Create-Logic-Gates/issues).
+Feel free to check the [issues page](https://github.com/Mujtaba891/Logic-Gates-Lab/issues).
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
