@@ -1,5 +1,5 @@
 import React from 'react';
-import { Undo2, Redo2, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
+import { Undo2, Redo2, ZoomIn, ZoomOut, Maximize2, Minimize2, Focus, Trash2 } from 'lucide-react';
 
 interface MobileCanvasToolbarProps {
   onUndo: () => void;
@@ -10,6 +10,8 @@ interface MobileCanvasToolbarProps {
   onZoomOut: () => void;
   onFitScreen: () => void;
   onClearCanvas: () => void;
+  isFullscreen?: boolean;
+  toggleFullscreen?: () => void;
 }
 
 export const MobileCanvasToolbar: React.FC<MobileCanvasToolbarProps> = ({
@@ -21,6 +23,8 @@ export const MobileCanvasToolbar: React.FC<MobileCanvasToolbarProps> = ({
   onZoomOut,
   onFitScreen,
   onClearCanvas,
+  isFullscreen = false,
+  toggleFullscreen,
 }) => {
   return (
     <div className="flex items-center gap-0.5 bg-slate-900/90 backdrop-blur border border-slate-800 p-1 rounded-2xl shadow-xl select-none shrink-0">
@@ -67,11 +71,24 @@ export const MobileCanvasToolbar: React.FC<MobileCanvasToolbarProps> = ({
       <button
         onClick={onFitScreen}
         className="p-1.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
-        title="Fit Screen"
-        aria-label="Fit Screen"
+        title="Fit to Screen"
+        aria-label="Fit to Screen"
       >
-        <Maximize2 className="w-3.5 h-3.5" />
+        <Focus className="w-3.5 h-3.5" />
       </button>
+
+      {toggleFullscreen && (
+        <button
+          onClick={toggleFullscreen}
+          className={`p-1.5 rounded-xl transition ${
+            isFullscreen ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-300 hover:text-white hover:bg-slate-800'
+          }`}
+          title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+          aria-label={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+        >
+          {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+        </button>
+      )}
 
       <div className="w-[1px] h-3.5 bg-slate-800 my-auto mx-0.5" />
 

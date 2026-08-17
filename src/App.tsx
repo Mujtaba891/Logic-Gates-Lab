@@ -73,30 +73,81 @@ function sanitizeProjects(rawProjects: any[]): UserProject[] {
 export default function App() {
   const [mode, setMode] = useState<'builder' | 'explorer' | 'challenges' | 'quiz'>('builder');
 
-  // Fullscreen State
+  // Fullscreen State (Supports Native Browser Fullscreen + App-level Immersive Fullscreen Mode on Mobile / iOS / iframe)
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const doc: any = document;
+      const isNativeFs = !!(
+        doc.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement
+      );
+      setIsFullscreen(isNativeFs);
     };
+
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
   }, []);
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.error('Error enabling fullscreen:', err);
-      });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch((err) => {
-          console.error('Error exiting fullscreen:', err);
-        });
+  const toggleFullscreen = useCallback(() => {
+    const doc: any = document;
+    const docEl: any = document.documentElement;
+
+    const isNativeFs = !!(
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement
+    );
+
+    if (!isFullscreen && !isNativeFs) {
+      // Enter Fullscreen: Attempt browser API first, fallback cleanly to UI Fullscreen
+      try {
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen().catch(() => {
+            setIsFullscreen(true);
+          });
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        } else if (docEl.mozRequestFullScreen) {
+          docEl.mozRequestFullScreen();
+        } else if (docEl.msRequestFullscreen) {
+          docEl.msRequestFullscreen();
+        }
+      } catch (e) {
+        console.warn('Native fullscreen request caught:', e);
       }
+      setIsFullscreen(true);
+    } else {
+      // Exit Fullscreen: Exit native if active, always exit UI fullscreen
+      try {
+        if (doc.exitFullscreen && (doc.fullscreenElement || doc.webkitFullscreenElement)) {
+          doc.exitFullscreen().catch(() => {});
+        } else if (doc.webkitExitFullscreen) {
+          doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+          doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen) {
+          doc.msExitFullscreen();
+        }
+      } catch (e) {
+        console.warn('Native exit fullscreen caught:', e);
+      }
+      setIsFullscreen(false);
     }
-  };
+  }, [isFullscreen]);
 
   // Saved User Projects State & Persistence
   const [projects, setProjects] = useState<UserProject[]>(() => {
@@ -746,6 +797,8 @@ export default function App() {
           toggleClock={handleToggleClock}
           onOpenDrawer={() => setIsComponentsDrawerOpen(true)}
           saveStatus={saveStatus}
+          isFullscreen={isFullscreen}
+          toggleFullscreen={toggleFullscreen}
         />
       )}
 
@@ -823,6 +876,8 @@ export default function App() {
                         onZoomOut={() => canvasRef.current?.zoomOut()}
                         onFitScreen={() => canvasRef.current?.fitToScreen()}
                         onClearCanvas={handleClearCanvas}
+                        isFullscreen={isFullscreen}
+                        toggleFullscreen={toggleFullscreen}
                       />
 
                       <MobileQuickActionsBar
@@ -973,6 +1028,8 @@ export default function App() {
           onExportLGL={handleExportLGL}
           onExportCSV={() => exportTruthTableToCSV(currentTruthTable)}
           onImportLGL={handleImportLGL}
+          isFullscreen={isFullscreen}
+          toggleFullscreen={toggleFullscreen}
           onSelectMode={(m) => {
             setMode(m);
             if (m === 'builder') setActiveMobileView('builder');

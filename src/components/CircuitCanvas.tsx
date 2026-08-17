@@ -95,13 +95,16 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
       setPanState(val);
     }, []);
 
+  // Selection
+  const [selectedCompIds, setSelectedCompIds] = useState<Set<string>>(new Set());
+  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
+
   // Dragging Component State
   const [draggingCompIds, setDraggingCompIds] = useState<Set<string>>(new Set());
   const [dragStartPos, setDragStartPos] = useState<Position | null>(null);
   const [dragInitialPositions, setDragInitialPositions] = useState<Map<string, Position>>(new Map());
   const [marqueeStart, setMarqueeStart] = useState<Position | null>(null);
   const [marqueeCurrent, setMarqueeCurrent] = useState<Position | null>(null);
-  
 
   // Wire Connection Pending State
   const [wireStart, _setWireStart] = useState<{ compId: string; portId: string; pos: Position } | null>(null);
@@ -116,16 +119,68 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
   const [hoveredPortId, setHoveredPortId] = useState<string | null>(null);
 
   // Magnetic snap target port when dragging wire
-  const [snapTarget, setSnapTarget] = useState<{
+  const [snapTarget, _setSnapTarget] = useState<{
+    compId: string;
+    portId: string;
+    pos: Position;
+    port: Port;
+  } | null>(null);
+  const snapTargetRef = useRef<{
     compId: string;
     portId: string;
     pos: Position;
     port: Port;
   } | null>(null);
 
-  // Selection
-  const [selectedCompIds, setSelectedCompIds] = useState<Set<string>>(new Set());
-  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
+  const setSnapTarget = (val: { compId: string; portId: string; pos: Position; port: Port } | null) => {
+    snapTargetRef.current = val;
+    _setSnapTarget(val);
+  };
+
+  // Synchronized state refs for smooth touch event tracking without stale closures
+  const componentsRef = useRef(components);
+  componentsRef.current = components;
+
+  const wiresRef = useRef(wires);
+  wiresRef.current = wires;
+
+  const selectedCompIdsRef = useRef(selectedCompIds);
+  selectedCompIdsRef.current = selectedCompIds;
+
+  const draggingCompIdsRef = useRef(draggingCompIds);
+  draggingCompIdsRef.current = draggingCompIds;
+
+  const dragStartPosRef = useRef(dragStartPos);
+  dragStartPosRef.current = dragStartPos;
+
+  const dragInitialPositionsRef = useRef(dragInitialPositions);
+  dragInitialPositionsRef.current = dragInitialPositions;
+
+  const canvasToolRef = useRef(canvasTool);
+  canvasToolRef.current = canvasTool;
+
+  const isPanningRef = useRef(isPanning);
+  isPanningRef.current = isPanning;
+
+  const panStartRef = useRef(panStart);
+  panStartRef.current = panStart;
+
+  // Touch tracking state
+  const touchStateRef = useRef<{
+    isDraggingComp: boolean;
+    hasMoved: boolean;
+    startScreenPos: Position;
+    draggedCompId: string | null;
+    isWiring: boolean;
+    wireStartPortId: string | null;
+  }>({
+    isDraggingComp: false,
+    hasMoved: false,
+    startScreenPos: { x: 0, y: 0 },
+    draggedCompId: null,
+    isWiring: false,
+    wireStartPortId: null,
+  });
 
   // Quick Add Spotlight Menu (double click)
   const [quickAddPos, setQuickAddPos] = useState<{ screen: Position; canvas: Position } | null>(null);
@@ -163,6 +218,13 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
     },
     [components]
   );
+
+  // Get port helper
+  const getPort = useCallback((compId: string, portId: string): Port | undefined => {
+    const comp = componentsRef.current.find((c) => c.id === compId);
+    if (!comp) return undefined;
+    return comp.inputs.find((p) => p.id === portId) || comp.outputs.find((p) => p.id === portId);
+  }, []);
 
   // Connect two ports bi-directionally
   const connectPorts = useCallback(
@@ -413,6 +475,42 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
     setDragInitialPositions(initials);
   };
 
+  // Component Touch Drag Start
+  const handleCompTouchStart = (e: React.TouchEvent, comp: CircuitComponent) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setSelectedWireId(null);
+    setQuickAddPos(null);
+
+    let nextSelected = new Set(selectedCompIdsRef.current);
+    if (!nextSelected.has(comp.id)) {
+      nextSelected.clear();
+      nextSelected.add(comp.id);
+    }
+    setSelectedCompIds(nextSelected);
+
+    const canvasPos = screenToCanvas(t.clientX, t.clientY);
+    setDragStartPos(canvasPos);
+    setDraggingCompIds(nextSelected);
+
+    const initials = new Map<string, Position>();
+    componentsRef.current.forEach((c) => {
+      if (nextSelected.has(c.id)) {
+        initials.set(c.id, { x: c.x, y: c.y });
+      }
+    });
+    setDragInitialPositions(initials);
+
+    touchStateRef.current = {
+      isDraggingComp: true,
+      hasMoved: false,
+      startScreenPos: { x: t.clientX, y: t.clientY },
+      draggedCompId: comp.id,
+      isWiring: false,
+      wireStartPortId: null,
+    };
+  };
+
   // Component Actions
   const handleRotateComponent = (compId?: string) => {
     const idsToRotate = compId ? new Set([compId]) : selectedCompIds;
@@ -604,6 +702,38 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
     }
   };
 
+  // Handle Port Touch Start
+  const handlePortTouchStart = (e: React.TouchEvent, compId: string, port: Port) => {
+    e.stopPropagation();
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+
+    const activeWireStart = wireStartRef.current;
+    if (!activeWireStart) {
+      const portPos = getPortAbsolutePosition(compId, port.id);
+      setWireStart({ compId, portId: port.id, pos: portPos });
+      touchStateRef.current = {
+        isDraggingComp: false,
+        hasMoved: false,
+        startScreenPos: { x: t.clientX, y: t.clientY },
+        draggedCompId: null,
+        isWiring: true,
+        wireStartPortId: port.id,
+      };
+    } else if (activeWireStart.compId !== compId || activeWireStart.portId !== port.id) {
+      connectPorts(activeWireStart.compId, activeWireStart.portId, compId, port.id);
+    }
+  };
+
+  // Handle Port Touch End
+  const handlePortTouchEnd = (e: React.TouchEvent, compId: string, port: Port) => {
+    e.stopPropagation();
+    const activeWireStart = wireStartRef.current;
+    if (activeWireStart && (activeWireStart.compId !== compId || activeWireStart.portId !== port.id)) {
+      connectPorts(activeWireStart.compId, activeWireStart.portId, compId, port.id);
+    }
+  };
+
   // Fit Circuit to Screen Bounding Box
   const fitToScreen = useCallback(() => {
     if (components.length === 0) {
@@ -696,7 +826,7 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
     };
   }, [isMobile, components.length, fitToScreen]);
 
-  // Touch & Wheel Event Listeners for Pinch-Zoom & Two-Finger Pan
+  // Touch & Wheel Event Listeners for Pinch-Zoom, Smooth Dragging & Two-Finger Pan
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -711,11 +841,20 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
         e.preventDefault();
         isTwoFingerGesture = true;
 
-        // Cancel pending actions on two-finger gesture start
+        // Cancel component drag / wiring on 2-finger zoom/pan
+        touchStateRef.current = {
+          isDraggingComp: false,
+          hasMoved: false,
+          startScreenPos: { x: 0, y: 0 },
+          draggedCompId: null,
+          isWiring: false,
+          wireStartPortId: null,
+        };
         setDraggingCompIds(new Set());
         setDragStartPos(null);
         setWireStart(null);
         setSnapTarget(null);
+        setIsPanning(false);
 
         const t1 = e.touches[0];
         const t2 = e.touches[1];
@@ -735,10 +874,18 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
         initialDist = dist;
         initialZoom = zoomRef.current;
         initialCanvasMid = { x: canvasX, y: canvasY };
-      } else if (e.touches.length === 1 && canvasTool === 'pan') {
+        return;
+      }
+
+      if (e.touches.length === 1) {
         const t = e.touches[0];
-        setIsPanning(true);
-        setPanStart({ x: t.clientX - panRef.current.x, y: t.clientY - panRef.current.y });
+        // If not initiated by comp or port touchStart
+        if (!touchStateRef.current.isDraggingComp && !touchStateRef.current.isWiring) {
+          setIsPanning(true);
+          const startPan = { x: t.clientX - panRef.current.x, y: t.clientY - panRef.current.y };
+          setPanStart(startPan);
+          panStartRef.current = startPan;
+        }
       }
     };
 
@@ -767,7 +914,10 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
           setZoom(newZoom);
           setPan({ x: newPanX, y: newPanY });
         }
-      } else if (e.touches.length === 1 && !isTwoFingerGesture) {
+        return;
+      }
+
+      if (e.touches.length === 1 && !isTwoFingerGesture) {
         const t = e.touches[0];
         const rect = container.getBoundingClientRect();
         const canvasPos = {
@@ -776,11 +926,74 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
         };
         setMouseCanvasPos(canvasPos);
 
-        if (isPanning) {
+        // Case A: Dragging component(s)
+        if (touchStateRef.current.isDraggingComp && dragStartPosRef.current && draggingCompIdsRef.current.size > 0) {
+          e.preventDefault();
+          const screenDx = Math.abs(t.clientX - touchStateRef.current.startScreenPos.x);
+          const screenDy = Math.abs(t.clientY - touchStateRef.current.startScreenPos.y);
+          if (screenDx > 3 || screenDy > 3) {
+            touchStateRef.current.hasMoved = true;
+          }
+
+          const dx = canvasPos.x - dragStartPosRef.current.x;
+          const dy = canvasPos.y - dragStartPosRef.current.y;
+
+          const updated = componentsRef.current.map((comp) => {
+            if (draggingCompIdsRef.current.has(comp.id)) {
+              const initPos = dragInitialPositionsRef.current.get(comp.id) || { x: comp.x, y: comp.y };
+              const rawX = initPos.x + dx;
+              const rawY = initPos.y + dy;
+              return {
+                ...comp,
+                x: Math.round(rawX / 10) * 10,
+                y: Math.round(rawY / 10) * 10,
+              };
+            }
+            return comp;
+          });
+          onUpdateComponents(updated, false);
+          return;
+        }
+
+        // Case B: Dragging Wire Connection
+        const activeWire = wireStartRef.current;
+        if (activeWire || touchStateRef.current.isWiring) {
+          e.preventDefault();
+          // Find magnetic snap candidate port within 45px
+          let closestCandidate: {
+            compId: string;
+            portId: string;
+            pos: Position;
+            port: Port;
+          } | null = null;
+          let minCandidateDist = 45;
+
+          const sourcePort = activeWire ? getPort(activeWire.compId, activeWire.portId) : null;
+          const isSourceInput = sourcePort?.direction === 'input';
+
+          componentsRef.current.forEach((comp) => {
+            if (activeWire && comp.id === activeWire.compId) return;
+            const portsToCheck = isSourceInput ? comp.outputs : comp.inputs;
+            portsToCheck.forEach((port) => {
+              const pPos = getPortAbsolutePosition(comp.id, port.id);
+              const d = Math.hypot(pPos.x - canvasPos.x, pPos.y - canvasPos.y);
+              if (d < minCandidateDist) {
+                minCandidateDist = d;
+                closestCandidate = { compId: comp.id, portId: port.id, pos: pPos, port };
+              }
+            });
+          });
+
+          setSnapTarget(closestCandidate);
+          return;
+        }
+
+        // Case C: Panning Canvas
+        if (isPanningRef.current) {
           e.preventDefault();
           setPan({
-            x: t.clientX - panStart.x,
-            y: t.clientY - panStart.y,
+            x: t.clientX - panStartRef.current.x,
+            y: t.clientY - panStartRef.current.y,
           });
         }
       }
@@ -791,7 +1004,51 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
         isTwoFingerGesture = false;
         initialDist = 0;
       }
+
       if (e.touches.length === 0) {
+        // Component Drag Finished
+        if (touchStateRef.current.isDraggingComp) {
+          if (touchStateRef.current.hasMoved) {
+            // Commit final position to history
+            onUpdateComponents(componentsRef.current, true);
+          } else if (touchStateRef.current.draggedCompId) {
+            // Single tap on component without moving -> Toggle if INPUT
+            const targetComp = componentsRef.current.find((c) => c.id === touchStateRef.current.draggedCompId);
+            if (targetComp && targetComp.type === 'INPUT') {
+              const nextState = !targetComp.state;
+              const updated = componentsRef.current.map((c) => {
+                if (c.id === targetComp.id) {
+                  return {
+                    ...c,
+                    state: nextState,
+                    outputs: c.outputs.map((p) => ({ ...p, value: nextState })),
+                  };
+                }
+                return c;
+              });
+              onUpdateComponents(updated, true);
+            }
+          }
+          setDraggingCompIds(new Set());
+          setDragStartPos(null);
+        }
+
+        // Wire Drag Finished
+        const activeWire = wireStartRef.current;
+        const currentSnap = snapTargetRef.current;
+        if (activeWire && currentSnap) {
+          connectPorts(activeWire.compId, activeWire.portId, currentSnap.compId, currentSnap.portId);
+        }
+
+        touchStateRef.current = {
+          isDraggingComp: false,
+          hasMoved: false,
+          startScreenPos: { x: 0, y: 0 },
+          draggedCompId: null,
+          isWiring: false,
+          wireStartPortId: null,
+        };
+
         setIsPanning(false);
       }
     };
@@ -831,7 +1088,7 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
       container.removeEventListener('touchcancel', handleTouchEnd);
       container.removeEventListener('wheel', handleWheel);
     };
-  }, [setZoom, setPan]);
+  }, [setZoom, setPan, onUpdateComponents, connectPorts, getPort, getPortAbsolutePosition]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -910,10 +1167,12 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
         onMouseLeave={() => setHoveredPortId(null)}
         onMouseDown={(e) => handlePortMouseDown(e, comp.id, port)}
         onMouseUp={(e) => handlePortMouseUp(e, comp.id, port)}
+        onTouchStart={(e) => handlePortTouchStart(e, comp.id, port)}
+        onTouchEnd={(e) => handlePortTouchEnd(e, comp.id, port)}
         className="cursor-pointer"
       >
-        {/* Large invisible hit area (r=14) */}
-        <circle r="14" fill="transparent" />
+        {/* Large invisible hit area for easy touch/mouse targets */}
+        <circle r={isMobile ? 18 : 14} fill="transparent" />
 
         {/* Magnetic Target Pulse Ring */}
         {isConnecting && !isSelf && (
@@ -948,7 +1207,7 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
       onDoubleClick={handleCanvasDoubleClick}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className={`relative flex-1 bg-[#0b1329] overflow-hidden select-none ${
+      className={`relative flex-1 bg-[#0b1329] overflow-hidden select-none touch-none ${
         isPanning ? 'cursor-grabbing' : canvasTool === 'pan' ? 'cursor-grab' : 'cursor-crosshair'
       }`}
     >
@@ -1122,6 +1381,7 @@ export const CircuitCanvas = React.forwardRef<CanvasControlHandle, CircuitCanvas
               key={comp.id}
               transform={`translate(${comp.x}, ${comp.y})`}
               onMouseDown={(e) => handleCompMouseDown(e, comp)}
+              onTouchStart={(e) => handleCompTouchStart(e, comp)}
               className="cursor-move group"
             >
               {/* Rotation Group */}

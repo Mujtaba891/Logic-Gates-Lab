@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Play, Pause, Cpu } from 'lucide-react';
+import { Menu, Play, Pause, Cpu, Maximize2, Minimize2 } from 'lucide-react';
 
 interface MobileHeaderProps {
   projectName?: string;
@@ -7,6 +7,8 @@ interface MobileHeaderProps {
   toggleClock: () => void;
   onOpenDrawer: () => void;
   saveStatus?: 'saved' | 'saving';
+  isFullscreen?: boolean;
+  toggleFullscreen?: () => void;
 }
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({
@@ -15,6 +17,8 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   toggleClock,
   onOpenDrawer,
   saveStatus = 'saved',
+  isFullscreen = false,
+  toggleFullscreen,
 }) => {
   return (
     <header className="min-h-[46px] bg-slate-950/95 border-b border-slate-800/80 text-slate-100 flex items-center justify-between px-2.5 z-30 shrink-0 select-none pt-[env(safe-area-inset-top,0px)] pb-1 shadow-sm">
@@ -48,28 +52,46 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Simulation Run Clock Button */}
-      <button
-        onClick={toggleClock}
-        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition shadow-sm border ${
-          clockRunning
-            ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 animate-pulse'
-            : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
-        }`}
-        aria-label={clockRunning ? 'Pause Clock' : 'Run Clock'}
-      >
-        {clockRunning ? (
-          <>
-            <Pause className="w-3 h-3 fill-current" />
-            <span className="hidden xs:inline">Pause</span>
-          </>
-        ) : (
-          <>
-            <Play className="w-3 h-3 fill-current" />
-            <span>Clock</span>
-          </>
+      {/* Right: Fullscreen & Clock Controls */}
+      <div className="flex items-center gap-1.5">
+        {toggleFullscreen && (
+          <button
+            onClick={toggleFullscreen}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center border transition ${
+              isFullscreen
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+            title={isFullscreen ? 'Exit Full Screen' : 'Enter Full Screen'}
+            aria-label={isFullscreen ? 'Exit Full Screen' : 'Enter Full Screen'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
         )}
-      </button>
+
+        {/* Simulation Run Clock Button */}
+        <button
+          onClick={toggleClock}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition shadow-sm border ${
+            clockRunning
+              ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 animate-pulse'
+              : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+          }`}
+          aria-label={clockRunning ? 'Pause Clock' : 'Run Clock'}
+        >
+          {clockRunning ? (
+            <>
+              <Pause className="w-3 h-3 fill-current" />
+              <span className="hidden xs:inline">Pause</span>
+            </>
+          ) : (
+            <>
+              <Play className="w-3 h-3 fill-current" />
+              <span>Clock</span>
+            </>
+          )}
+        </button>
+      </div>
     </header>
   );
 };

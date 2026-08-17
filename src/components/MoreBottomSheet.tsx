@@ -13,6 +13,8 @@ import {
   Layers,
   GraduationCap,
   Sparkles,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { UserProject } from '../types';
 
@@ -30,6 +32,8 @@ interface MoreBottomSheetProps {
   onExportCSV: () => void;
   onImportLGL: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSelectMode: (mode: 'builder' | 'explorer' | 'challenges' | 'quiz') => void;
+  isFullscreen?: boolean;
+  toggleFullscreen?: () => void;
 }
 
 export const MoreBottomSheet: React.FC<MoreBottomSheetProps> = ({
@@ -46,6 +50,8 @@ export const MoreBottomSheet: React.FC<MoreBottomSheetProps> = ({
   onExportCSV,
   onImportLGL,
   onSelectMode,
+  isFullscreen = false,
+  toggleFullscreen,
 }) => {
   if (!isOpen) return null;
 
@@ -268,6 +274,32 @@ export const MoreBottomSheet: React.FC<MoreBottomSheetProps> = ({
                   <span className="block text-[9px] text-slate-400">Test gate symbol recognition</span>
                 </div>
               </button>
+
+              {toggleFullscreen && (
+                <button
+                  onClick={() => {
+                    toggleFullscreen();
+                    onClose();
+                  }}
+                  className={`p-2 rounded-xl border text-left flex items-center gap-2 transition col-span-2 ${
+                    isFullscreen
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                      : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-200'
+                  }`}
+                >
+                  <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+                    {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                  </div>
+                  <div>
+                    <span className="block text-[11px] font-bold text-slate-100">
+                      {isFullscreen ? 'Exit Full Screen Mode' : 'Toggle Full Screen Mode'}
+                    </span>
+                    <span className="block text-[9px] text-slate-400">
+                      {isFullscreen ? 'Return to standard mobile viewport' : 'Expand workspace to full display height'}
+                    </span>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         </div>

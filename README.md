@@ -1,7 +1,7 @@
 # ⚡ LogicGate Lab — Interactive Logic Gate Simulator & Digital Circuit Designer
 
 <div align="center">
-  <img src="https://logicgateslab.vercel.app/lgl.png" alt="LogicGate Lab Logo" width="120" />
+  <img src="public/lgl.png" alt="LogicGate Lab Logo" width="120" />
 
   <h3>A Modern, High-Performance, Web-Based Digital Logic CAD & Educational Circuit Simulation Engine</h3>
 
@@ -175,8 +175,8 @@ LogicGate Lab utilizes the open `.lgl` JSON schema to serialize complete circuit
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/Mujtaba891/Logic-Gates-Lab.git
-   cd Logic-Gates-Lab
+   git clone https://github.com/Mujtaba891/Create-Logic-Gates.git
+   cd Create-Logic-Gates
    ```
 
 2. **Install dependencies**:
@@ -215,7 +215,7 @@ LogicGate Lab utilizes the open `.lgl` JSON schema to serialize complete circuit
 ## 🤝 Contributing
 
 Contributions, issues, and feature requests are welcome!
-Feel free to check the [issues page](https://github.com/Mujtaba891/Logic-Gates-Lab/issues).
+Feel free to check the [issues page](https://github.com/Mujtaba891/Create-Logic-Gates/issues).
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
